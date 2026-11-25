@@ -8,6 +8,13 @@ release says when it does.
 
 ## [Unreleased]
 
+### Added
+
+- Files can be kept in an S3-compatible bucket (AWS S3, Nine Object Storage,
+  Cloudflare R2, MinIO) by setting `S3_BUCKET` and its credentials, for hosts
+  whose disk does not survive a restart. See "S3-compatible storage" in
+  docs/self-hosting.md.
+
 ## [0.9.0] - 2026-11-22
 
 People can now work as a team, seeing the envelopes their teammates send,

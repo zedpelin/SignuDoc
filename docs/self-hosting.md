@@ -356,7 +356,7 @@ Away from Vercel, a few things Vercel does for you are yours to set:
 - `APP_URL`, the site's public HTTPS address.
 - `BETTER_AUTH_SECRET`, at least 32 characters (`openssl rand -hex 32`). Without it a secret is derived from the database password, which must then be at least 12 characters long.
 - `RESEND_API_KEY`, from your Resend account.
-- Files are kept on the machine's disk under `.data/storage` (`STORAGE_LOCAL_DIR` changes where), so that disk must survive restarts. To use a Vercel Blob store from elsewhere, set `BLOB_READ_WRITE_TOKEN`.
+- Files are kept on the machine's disk under `.data/storage` (`STORAGE_LOCAL_DIR` changes where), so that disk must survive restarts. On a host whose disk does not, keep them in an [S3-compatible bucket](#s3-compatible-storage) instead. To use a Vercel Blob store from elsewhere, set `BLOB_READ_WRITE_TOKEN`.
 - Leave `EMAIL_DRIVER` unset. The capture driver is for development only.
 
 Self-hosted operators are responsible for:
@@ -365,3 +365,21 @@ Self-hosted operators are responsible for:
 - keeping the support address pointed at a mailbox someone reads, and verifying a sending domain for email;
 - configuring retention, consent, and compliance requirements for their own deployment; and
 - scheduling the [daily cleanup](#daily-cleanup) if they are not on Vercel, where it is scheduled for them.
+
+### S3-compatible storage
+
+Set `S3_BUCKET` and the app keeps its files in that bucket: AWS S3, or any store that speaks the S3 API, such as Nine Object Storage, Cloudflare R2 or MinIO.
+
+| Variable                                   |                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `S3_BUCKET`                                | The bucket's name. Setting it turns S3 storage on, unless a Vercel Blob store is connected or `STORAGE_DRIVER` says otherwise. |
+| `S3_ENDPOINT`                              | The store's address, for example `https://cz42.objects.nineapis.ch`. Leave it unset for AWS S3.                                |
+| `S3_REGION`                                | Defaults to `us-east-1`, which most stores other than AWS accept.                                                              |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | A key that can read, write and delete objects in the bucket.                                                                   |
+| `S3_FORCE_PATH_STYLE`                      | Addresses the bucket as `<endpoint>/<bucket>`. On by default when `S3_ENDPOINT` is set; `0` turns it off.                      |
+
+Keep the bucket private. Every file is read through the app, which checks who is asking first, so nothing in it needs a public URL. PDFs are uploaded through the app rather than straight to the bucket, so whatever sits in front of the app must accept a request of up to about 21 MB.
+
+The store must support conditional writes (`If-None-Match: *` on a PUT, answered with `412` when the object exists). The app uses them where two requests could write the same file at once, such as two signers finishing together, so that exactly one copy is kept. AWS S3, R2 and recent MinIO support them; check your provider before going live, since a store that ignores the header lets the second write replace the first.
+
+SignuDoc's own daily backup copies to a Vercel Blob store and is skipped with S3 storage. Use your provider's bucket versioning or replication for the files, and the database's own backups for the records.
